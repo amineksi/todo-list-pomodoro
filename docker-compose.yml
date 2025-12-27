@@ -1,0 +1,45 @@
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: pomodoro-backend
+    ports:
+      - "8000:8000"
+    volumes:
+      - backend-db:/app/data
+    environment:
+      - DATABASE_URL=sqlite:///./data/pomodoro_tasks.db
+      - BACKEND_CORS_ORIGINS=http://localhost:3000,http://localhost:8000
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import requests; requests.get('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - pomodoro-network
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: pomodoro-frontend
+    ports:
+      - "3000:3000"
+    environment:
+      # This is only used during build time for server-side rendering
+      # Client-side always uses localhost:8000 (hardcoded in api.ts)
+      - NEXT_PUBLIC_API_URL=http://localhost:8000/api/v1
+    depends_on:
+      - backend
+    restart: unless-stopped
+    networks:
+      - pomodoro-network
+
+volumes:
+  backend-db:
+
+networks:
+  pomodoro-network:
+    driver: bridge

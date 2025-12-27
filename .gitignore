@@ -205,3 +205,48 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+# Project specific
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+backend/data/
+backend/pomodoro_tasks.db
+
+# Environment files
+.env
+.env.local
+.env.*.local
+backend/.env
+
+# Node modules
+node_modules/
+frontend/node_modules/
+frontend/.next/
+frontend/.next/
+frontend/out/
+frontend/dist/
+frontend/build/
+
+# Python
+backend/venv/
+backend/__pycache__/
+backend/**/__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Docker
+.docker/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
