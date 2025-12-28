@@ -8,7 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from .api.api import api_router
 from .core.config import settings
 from .core.database import create_tables
-from .models import task  # Import models to register them
+from .models import user, task  # Import models to register them
 
 # Create database tables on startup
 create_tables()

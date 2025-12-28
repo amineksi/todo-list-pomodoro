@@ -8,21 +8,35 @@ from sqlalchemy import func
 from datetime import datetime, timedelta
 
 from ...core.database import get_db
+from ...core.dependencies import get_current_active_user
 from ...models.task import Task, TaskStatus, PomodoroSession
+from ...models.user import User
 from ...schemas.task import DashboardStats, TaskStats, PomodoroStats
 
 router = APIRouter()
 
 @router.get("/dashboard", response_model=DashboardStats)
-def get_dashboard_stats(db: Session = Depends(get_db)):
+def get_dashboard_stats(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
     """
-    Get comprehensive dashboard statistics.
+    Get comprehensive dashboard statistics for the current user.
     """
-    # Task statistics
-    total_tasks = db.query(func.count(Task.id)).scalar()
-    completed_tasks = db.query(func.count(Task.id)).filter(Task.status == TaskStatus.DONE).scalar()
-    in_progress_tasks = db.query(func.count(Task.id)).filter(Task.status == TaskStatus.IN_PROGRESS).scalar()
-    todo_tasks = db.query(func.count(Task.id)).filter(Task.status == TaskStatus.TODO).scalar()
+    # Task statistics (filtered by user)
+    total_tasks = db.query(func.count(Task.id)).filter(Task.user_id == current_user.id).scalar()
+    completed_tasks = db.query(func.count(Task.id)).filter(
+        Task.user_id == current_user.id,
+        Task.status == TaskStatus.DONE
+    ).scalar()
+    in_progress_tasks = db.query(func.count(Task.id)).filter(
+        Task.user_id == current_user.id,
+        Task.status == TaskStatus.IN_PROGRESS
+    ).scalar()
+    todo_tasks = db.query(func.count(Task.id)).filter(
+        Task.user_id == current_user.id,
+        Task.status == TaskStatus.TODO
+    ).scalar()
 
     completion_rate = (completed_tasks / total_tasks * 100) if total_tasks > 0 else 0
 
@@ -34,21 +48,26 @@ def get_dashboard_stats(db: Session = Depends(get_db)):
         completion_rate=round(completion_rate, 2)
     )
 
-    # Pomodoro statistics
-    total_sessions = db.query(func.count(PomodoroSession.id)).scalar()
-    completed_sessions = db.query(func.count(PomodoroSession.id)).filter(
+    # Pomodoro statistics (filtered by user's tasks)
+    total_sessions = db.query(func.count(PomodoroSession.id)).join(Task).filter(
+        Task.user_id == current_user.id
+    ).scalar()
+    completed_sessions = db.query(func.count(PomodoroSession.id)).join(Task).filter(
+        Task.user_id == current_user.id,
         PomodoroSession.completed_at.isnot(None)
     ).scalar()
 
     # Total work minutes (only completed work sessions)
-    total_work_minutes_result = db.query(func.sum(PomodoroSession.actual_duration_minutes)).filter(
+    total_work_minutes_result = db.query(func.sum(PomodoroSession.actual_duration_minutes)).join(Task).filter(
+        Task.user_id == current_user.id,
         PomodoroSession.session_type == "work",
         PomodoroSession.completed_at.isnot(None)
     ).scalar()
     total_work_minutes = total_work_minutes_result or 0
 
     # Average session duration
-    avg_duration_result = db.query(func.avg(PomodoroSession.actual_duration_minutes)).filter(
+    avg_duration_result = db.query(func.avg(PomodoroSession.actual_duration_minutes)).join(Task).filter(
+        Task.user_id == current_user.id,
         PomodoroSession.completed_at.isnot(None)
     ).scalar()
     average_session_duration = avg_duration_result or 0
@@ -57,12 +76,14 @@ def get_dashboard_stats(db: Session = Depends(get_db)):
     today = datetime.utcnow().date()
     tomorrow = today + timedelta(days=1)
 
-    sessions_today = db.query(func.count(PomodoroSession.id)).filter(
+    sessions_today = db.query(func.count(PomodoroSession.id)).join(Task).filter(
+        Task.user_id == current_user.id,
         PomodoroSession.created_at >= today,
         PomodoroSession.created_at < tomorrow
     ).scalar()
 
-    work_minutes_today_result = db.query(func.sum(PomodoroSession.actual_duration_minutes)).filter(
+    work_minutes_today_result = db.query(func.sum(PomodoroSession.actual_duration_minutes)).join(Task).filter(
+        Task.user_id == current_user.id,
         PomodoroSession.session_type == "work",
         PomodoroSession.completed_at.isnot(None),
         PomodoroSession.created_at >= today,
@@ -85,26 +106,37 @@ def get_dashboard_stats(db: Session = Depends(get_db)):
     )
 
 @router.get("/tasks/summary")
-def get_task_summary(db: Session = Depends(get_db)):
+def get_task_summary(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
     """
-    Get a summary of tasks by status.
+    Get a summary of tasks by status for the current user.
     """
-    stats = db.query(Task.status, func.count(Task.id)).group_by(Task.status).all()
+    stats = db.query(Task.status, func.count(Task.id)).filter(
+        Task.user_id == current_user.id
+    ).group_by(Task.status).all()
     return {status.value: count for status, count in stats}
 
 @router.get("/pomodoro/summary")
-def get_pomodoro_summary(db: Session = Depends(get_db)):
+def get_pomodoro_summary(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
     """
-    Get a summary of pomodoro sessions.
+    Get a summary of pomodoro sessions for the current user.
     """
     # Sessions by type
-    type_stats = db.query(PomodoroSession.session_type, func.count(PomodoroSession.id)).group_by(
-        PomodoroSession.session_type
-    ).all()
+    type_stats = db.query(PomodoroSession.session_type, func.count(PomodoroSession.id)).join(Task).filter(
+        Task.user_id == current_user.id
+    ).group_by(PomodoroSession.session_type).all()
 
     # Completion rate
-    total_sessions = db.query(func.count(PomodoroSession.id)).scalar()
-    completed_sessions = db.query(func.count(PomodoroSession.id)).filter(
+    total_sessions = db.query(func.count(PomodoroSession.id)).join(Task).filter(
+        Task.user_id == current_user.id
+    ).scalar()
+    completed_sessions = db.query(func.count(PomodoroSession.id)).join(Task).filter(
+        Task.user_id == current_user.id,
         PomodoroSession.completed_at.isnot(None)
     ).scalar()
 

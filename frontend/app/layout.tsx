@@ -1,6 +1,8 @@
 import type { Metadata } from 'next'
 import './globals.css'
 import Layout from '@/components/Layout'
+import { PomodoroProvider } from '@/contexts/PomodoroContext'
+import { AuthProvider } from '@/contexts/AuthContext'
 
 export const metadata: Metadata = {
   title: '🍅 Pomodoro Task Manager',
@@ -15,7 +17,11 @@ export default function RootLayout({
   return (
     <html lang="fr">
       <body>
-        <Layout>{children}</Layout>
+        <AuthProvider>
+          <PomodoroProvider>
+            <Layout>{children}</Layout>
+          </PomodoroProvider>
+        </AuthProvider>
       </body>
     </html>
   )

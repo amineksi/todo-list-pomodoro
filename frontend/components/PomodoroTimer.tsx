@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { pomodoroApi } from '@/lib/api'
 import { Play, Pause, Square, Check } from 'lucide-react'
 
@@ -15,6 +15,23 @@ export default function PomodoroTimer({ taskId, onComplete }: PomodoroTimerProps
   const [isRunning, setIsRunning] = useState(false)
   const [isCompleted, setIsCompleted] = useState(false)
   const intervalRef = useRef<NodeJS.Timeout | null>(null)
+
+  const handleComplete = useCallback(async () => {
+    setIsRunning(false)
+    setIsCompleted(true)
+    try {
+      // Find the active session and complete it
+      const sessionsResponse = await pomodoroApi.getAll(taskId)
+      const activeSession = sessionsResponse.data.find(
+        (s) => s.started_at && !s.completed_at
+      )
+      if (activeSession) {
+        await pomodoroApi.complete(activeSession.id)
+      }
+    } catch (error) {
+      console.error('Failed to complete pomodoro:', error)
+    }
+  }, [taskId])
 
   useEffect(() => {
     if (isRunning && !isCompleted) {
@@ -42,24 +59,7 @@ export default function PomodoroTimer({ taskId, onComplete }: PomodoroTimerProps
         clearInterval(intervalRef.current)
       }
     }
-  }, [isRunning, minutes, seconds, isCompleted])
-
-  const handleComplete = async () => {
-    setIsRunning(false)
-    setIsCompleted(true)
-    try {
-      // Find the active session and complete it
-      const sessionsResponse = await pomodoroApi.getAll(taskId)
-      const activeSession = sessionsResponse.data.find(
-        (s) => s.started_at && !s.completed_at
-      )
-      if (activeSession) {
-        await pomodoroApi.complete(activeSession.id)
-      }
-    } catch (error) {
-      console.error('Failed to complete pomodoro:', error)
-    }
-  }
+  }, [isRunning, minutes, seconds, isCompleted, handleComplete])
 
   const handleStart = () => {
     setIsRunning(true)

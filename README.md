@@ -6,6 +6,12 @@ A modern productivity tool that helps users manage tasks while using the Pomodor
 
 ## ✨ Features
 
+### 🔐 Authentication
+- User registration and login
+- JWT-based authentication
+- Protected routes and user-specific data
+- Secure password hashing with bcrypt
+
 ### 🕒 Pomodoro Timer
 - 25-minute work sessions with 5-minute breaks
 - Long break (15min) after 4 pomodoros
@@ -17,12 +23,14 @@ A modern productivity tool that helps users manage tasks while using the Pomodor
 - Priority levels (High, Medium, Low)
 - Status tracking (Todo → In Progress → Done)
 - Due dates support
+- User-specific task isolation
 
 ### 📊 Productivity Dashboard
 - Daily/weekly pomodoro statistics
 - Task completion rates
 - Time tracking per task
 - Productivity trends
+- User-specific statistics
 
 ### 🐳 DevOps Ready
 - Docker containerization
@@ -35,7 +43,7 @@ A modern productivity tool that helps users manage tasks while using the Pomodor
 ### Backend
 - **FastAPI** - High-performance async web framework
 - **SQLAlchemy** - ORM for database operations
-- **SQLite** - Database (easily switchable to PostgreSQL)
+- **PostgreSQL** - Database (used for both development and production)
 - **Pydantic** - Data validation
 
 ### Frontend
@@ -58,8 +66,15 @@ A modern productivity tool that helps users manage tasks while using the Pomodor
 git clone <your-repo-url>
 cd todo-list-pomodoro
 
-# Start with Docker Compose
+# Start with Docker Compose (includes PostgreSQL container)
 docker-compose up -d
+
+# If port 5432 is already in use (local PostgreSQL), use port 5433:
+# The PostgreSQL container will use port 5433 on your host
+# Update DATABASE_URL in backend/.env if needed
+
+# Or use local PostgreSQL instead:
+docker-compose -f docker-compose.local-postgres.yml up -d
 
 # Access the application
 # Frontend: http://localhost:3000
@@ -69,12 +84,32 @@ docker-compose up -d
 
 ### Option 2: Local Development
 
+#### Prerequisites
+PostgreSQL must be installed and running. See [PostgreSQL Setup Guide](./docs/SETUP_POSTGRESQL.md) for installation instructions.
+
+#### Setup PostgreSQL (First time only)
+```bash
+# Run the setup script (Ubuntu/WSL)
+make setup-postgres
+
+# Or manually:
+sudo -u postgres psql
+CREATE USER pomodoro_user WITH PASSWORD 'pomodoro_password';
+CREATE DATABASE pomodoro_db OWNER pomodoro_user;
+GRANT ALL PRIVILEGES ON DATABASE pomodoro_db TO pomodoro_user;
+\q
+```
+
 #### Backend
 ```bash
 cd backend
 python -m venv venv
 source venv/bin/activate  # On Windows: venv\Scripts\activate
 pip install -r requirements.txt
+
+# Create .env file with PostgreSQL connection
+echo "DATABASE_URL=postgresql://pomodoro_user:pomodoro_password@localhost:5432/pomodoro_db" > .env
+
 python run.py
 ```
 
@@ -122,6 +157,8 @@ todo-list-pomodoro/
 - [x] CI/CD pipeline (GitHub Actions)
 - [x] Backend unit tests
 - [x] Complete documentation
+- [x] **User authentication system (JWT)**
+- [x] **Protected routes and user-specific data**
 
 ## 🐛 Troubleshooting
 
@@ -175,6 +212,9 @@ pytest tests/ -v
 
 - [API Documentation](./docs/API.md)
 - [Deployment Guide](./docs/DEPLOYMENT.md)
+- [Production Guide](./docs/PRODUCTION.md)
+- [PostgreSQL Setup Guide](./docs/SETUP_POSTGRESQL.md)
+- [Authentication Guide](./docs/AUTHENTICATION.md)
 
 ## 📝 License
 

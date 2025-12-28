@@ -8,18 +8,24 @@ from sqlalchemy.orm import Session
 from datetime import datetime
 
 from ...core.database import get_db
+from ...core.dependencies import get_current_active_user
 from ...models.task import PomodoroSession, Task
+from ...models.user import User
 from ...schemas.task import PomodoroSessionCreate, PomodoroSessionUpdate, PomodoroSession as PomodoroSessionSchema
 
 router = APIRouter()
 
 @router.post("/", response_model=PomodoroSessionSchema, status_code=status.HTTP_201_CREATED)
-def create_pomodoro_session(session: PomodoroSessionCreate, db: Session = Depends(get_db)):
+def create_pomodoro_session(
+    session: PomodoroSessionCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
     """
     Create a new pomodoro session for a task.
     """
-    # Verify task exists
-    task = db.query(Task).filter(Task.id == session.task_id).first()
+    # Verify task exists and belongs to user
+    task = db.query(Task).filter(Task.id == session.task_id, Task.user_id == current_user.id).first()
     if task is None:
         raise HTTPException(status_code=404, detail="Task not found")
 
@@ -34,23 +40,31 @@ def read_pomodoro_sessions(
     skip: int = 0,
     limit: int = 100,
     task_id: int = None,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
 ):
     """
-    Get all pomodoro sessions with optional task filtering.
+    Get all pomodoro sessions for the current user with optional task filtering.
     """
-    query = db.query(PomodoroSession)
+    query = db.query(PomodoroSession).join(Task).filter(Task.user_id == current_user.id)
     if task_id:
         query = query.filter(PomodoroSession.task_id == task_id)
     sessions = query.offset(skip).limit(limit).all()
     return sessions
 
 @router.get("/{session_id}", response_model=PomodoroSessionSchema)
-def read_pomodoro_session(session_id: int, db: Session = Depends(get_db)):
+def read_pomodoro_session(
+    session_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
     """
     Get a specific pomodoro session by ID.
     """
-    session = db.query(PomodoroSession).filter(PomodoroSession.id == session_id).first()
+    session = db.query(PomodoroSession).join(Task).filter(
+        PomodoroSession.id == session_id,
+        Task.user_id == current_user.id
+    ).first()
     if session is None:
         raise HTTPException(status_code=404, detail="Pomodoro session not found")
     return session
@@ -59,12 +73,16 @@ def read_pomodoro_session(session_id: int, db: Session = Depends(get_db)):
 def update_pomodoro_session(
     session_id: int,
     session_update: PomodoroSessionUpdate,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
 ):
     """
     Update a pomodoro session (start, complete, etc.).
     """
-    session = db.query(PomodoroSession).filter(PomodoroSession.id == session_id).first()
+    session = db.query(PomodoroSession).join(Task).filter(
+        PomodoroSession.id == session_id,
+        Task.user_id == current_user.id
+    ).first()
     if session is None:
         raise HTTPException(status_code=404, detail="Pomodoro session not found")
 
@@ -78,11 +96,18 @@ def update_pomodoro_session(
     return session
 
 @router.post("/{session_id}/start", response_model=PomodoroSessionSchema)
-def start_pomodoro_session(session_id: int, db: Session = Depends(get_db)):
+def start_pomodoro_session(
+    session_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
     """
     Start a pomodoro session.
     """
-    session = db.query(PomodoroSession).filter(PomodoroSession.id == session_id).first()
+    session = db.query(PomodoroSession).join(Task).filter(
+        PomodoroSession.id == session_id,
+        Task.user_id == current_user.id
+    ).first()
     if session is None:
         raise HTTPException(status_code=404, detail="Pomodoro session not found")
 
@@ -95,11 +120,18 @@ def start_pomodoro_session(session_id: int, db: Session = Depends(get_db)):
     return session
 
 @router.post("/{session_id}/complete", response_model=PomodoroSessionSchema)
-def complete_pomodoro_session(session_id: int, db: Session = Depends(get_db)):
+def complete_pomodoro_session(
+    session_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
     """
     Complete a pomodoro session.
     """
-    session = db.query(PomodoroSession).filter(PomodoroSession.id == session_id).first()
+    session = db.query(PomodoroSession).join(Task).filter(
+        PomodoroSession.id == session_id,
+        Task.user_id == current_user.id
+    ).first()
     if session is None:
         raise HTTPException(status_code=404, detail="Pomodoro session not found")
 
@@ -120,11 +152,18 @@ def complete_pomodoro_session(session_id: int, db: Session = Depends(get_db)):
     return session
 
 @router.delete("/{session_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_pomodoro_session(session_id: int, db: Session = Depends(get_db)):
+def delete_pomodoro_session(
+    session_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
     """
     Delete a pomodoro session.
     """
-    session = db.query(PomodoroSession).filter(PomodoroSession.id == session_id).first()
+    session = db.query(PomodoroSession).join(Task).filter(
+        PomodoroSession.id == session_id,
+        Task.user_id == current_user.id
+    ).first()
     if session is None:
         raise HTTPException(status_code=404, detail="Pomodoro session not found")
 

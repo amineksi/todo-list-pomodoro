@@ -41,7 +41,11 @@ class Settings(BaseSettings):
         return [origin.strip() for origin in self.BACKEND_CORS_ORIGINS.split(",") if origin.strip()]
 
     # Database Configuration
-    DATABASE_URL: str = "sqlite:///./pomodoro_tasks.db"
+    # PostgreSQL is used for both development and production
+    # Format: postgresql://user:password@host:port/dbname
+    # For local development: postgresql://pomodoro_user:pomodoro_password@localhost:5432/pomodoro_db
+    # The URL can be overridden via environment variable or .env file
+    DATABASE_URL: str = "postgresql://pomodoro_user:pomodoro_password@localhost:5432/pomodoro_db"
 
     # Pomodoro Configuration
     POMODORO_WORK_DURATION: int = 25  # minutes

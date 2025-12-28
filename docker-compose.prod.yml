@@ -1,15 +1,17 @@
+version: '3.8'
+
 services:
   postgres:
     image: postgres:15-alpine
     container_name: pomodoro-postgres
     environment:
       POSTGRES_USER: pomodoro_user
-      POSTGRES_PASSWORD: pomodoro_password
+      POSTGRES_PASSWORD: pomodoro_password_change_in_production
       POSTGRES_DB: pomodoro_db
     volumes:
       - postgres-data:/var/lib/postgresql/data
     ports:
-      - "5433:5432"  # Use port 5433 on host to avoid conflict with local PostgreSQL
+      - "5432:5432"
     restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U pomodoro_user"]
@@ -23,12 +25,13 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    container_name: pomodoro-backend
+    container_name: pomodoro-backend-prod
     ports:
       - "8000:8000"
     environment:
-      - DATABASE_URL=postgresql://pomodoro_user:pomodoro_password@postgres:5432/pomodoro_db
-      - BACKEND_CORS_ORIGINS=http://localhost:3000,http://localhost:8000
+      - DATABASE_URL=postgresql://pomodoro_user:pomodoro_password_change_in_production@postgres:5432/pomodoro_db
+      - SECRET_KEY=change-this-secret-key-in-production
+      - BACKEND_CORS_ORIGINS=${BACKEND_CORS_ORIGINS:-http://localhost:3000,https://yourdomain.com}
     depends_on:
       postgres:
         condition: service_healthy
@@ -45,13 +48,11 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-    container_name: pomodoro-frontend
+    container_name: pomodoro-frontend-prod
     ports:
       - "3000:3000"
     environment:
-      # This is only used during build time for server-side rendering
-      # Client-side always uses localhost:8000 (hardcoded in api.ts)
-      - NEXT_PUBLIC_API_URL=http://localhost:8000/api/v1
+      - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://localhost:8000/api/v1}
     depends_on:
       - backend
     restart: unless-stopped
@@ -64,3 +65,4 @@ volumes:
 networks:
   pomodoro-network:
     driver: bridge
+

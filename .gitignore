@@ -213,32 +213,45 @@ __marimo__/
 *.sqlite3
 backend/data/
 backend/pomodoro_tasks.db
+*.db-journal
 
 # Environment files
 .env
 .env.local
 .env.*.local
 backend/.env
+frontend/.env
+frontend/.env.local
+frontend/.env.production
 
 # Node modules
 node_modules/
 frontend/node_modules/
 frontend/.next/
-frontend/.next/
 frontend/out/
 frontend/dist/
 frontend/build/
+frontend/.turbo/
 
 # Python
 backend/venv/
 backend/__pycache__/
 backend/**/__pycache__/
+**/__pycache__/
 *.pyc
 *.pyo
 *.pyd
+.Python
+*.so
+*.egg
+*.egg-info/
+.pytest_cache/
+.coverage
+htmlcov/
 
 # Docker
 .docker/
+docker-compose.override.yml
 
 # IDE
 .vscode/
@@ -246,7 +259,18 @@ backend/**/__pycache__/
 *.swp
 *.swo
 *~
+.project
+.classpath
+.settings/
 
 # OS
 .DS_Store
 Thumbs.db
+*.log
+
+# Temporary files
+*.tmp
+*.temp
+QUICK_FIX.md
+*.bak
+*.backup

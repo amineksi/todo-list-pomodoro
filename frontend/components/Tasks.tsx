@@ -1,9 +1,9 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { tasksApi, pomodoroApi, Task, PomodoroSession } from '@/lib/api'
+import { tasksApi, Task } from '@/lib/api'
 import { Plus, Trash2, Edit2, Play, Clock } from 'lucide-react'
-import PomodoroTimer from './PomodoroTimer'
+import { usePomodoro } from '@/contexts/PomodoroContext'
 
 export default function Tasks() {
   const [tasks, setTasks] = useState<Task[]>([])
@@ -11,7 +11,7 @@ export default function Tasks() {
   const [error, setError] = useState<string | null>(null)
   const [showAddModal, setShowAddModal] = useState(false)
   const [editingTask, setEditingTask] = useState<Task | null>(null)
-  const [activeTimer, setActiveTimer] = useState<number | null>(null)
+  const { startTimer, hasActiveTimer, state } = usePomodoro()
 
   useEffect(() => {
     loadTasks()
@@ -67,14 +67,10 @@ export default function Tasks() {
 
   const handleStartPomodoro = async (taskId: number) => {
     try {
-      const response = await pomodoroApi.create({
-        task_id: taskId,
-        duration_minutes: 25,
-        session_type: 'work',
-      })
-      const sessionId = response.data.id
-      await pomodoroApi.start(sessionId)
-      setActiveTimer(taskId)
+      const task = tasks.find(t => t.id === taskId)
+      const taskTitle = task?.title || `Task #${taskId}`
+      await startTimer(taskId, taskTitle)
+      await loadTasks() // Refresh to update task status
     } catch (err: any) {
       console.error('Failed to start pomodoro:', err)
       alert(`Failed to start pomodoro: ${err.message || 'Unknown error'}`)
@@ -141,16 +137,6 @@ export default function Tasks() {
         </button>
       </div>
 
-      {activeTimer && (
-        <PomodoroTimer
-          taskId={activeTimer}
-          onComplete={() => {
-            setActiveTimer(null)
-            loadTasks()
-          }}
-        />
-      )}
-
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {tasks.map((task) => (
           <TaskCard
@@ -159,7 +145,8 @@ export default function Tasks() {
             onEdit={setEditingTask}
             onDelete={handleDeleteTask}
             onStartPomodoro={handleStartPomodoro}
-            isTimerActive={activeTimer === task.id}
+            isTimerActive={hasActiveTimer && state.taskId === task.id}
+            hasOtherTimerActive={hasActiveTimer && state.taskId !== task.id}
             getStatusColor={getStatusColor}
             getPriorityColor={getPriorityColor}
           />
@@ -197,6 +184,7 @@ interface TaskCardProps {
   onDelete: (id: number) => void
   onStartPomodoro: (id: number) => void
   isTimerActive: boolean
+  hasOtherTimerActive: boolean
   getStatusColor: (status: string) => string
   getPriorityColor: (priority: string) => string
 }
@@ -207,6 +195,7 @@ function TaskCard({
   onDelete,
   onStartPomodoro,
   isTimerActive,
+  hasOtherTimerActive,
   getStatusColor,
   getPriorityColor,
 }: TaskCardProps) {
@@ -246,11 +235,11 @@ function TaskCard({
 
       <button
         onClick={() => onStartPomodoro(task.id)}
-        disabled={isTimerActive || task.status === 'done'}
+        disabled={isTimerActive || task.status === 'done' || hasOtherTimerActive}
         className={`w-full flex items-center justify-center space-x-2 px-4 py-2 rounded-lg transition-colors ${
           isTimerActive
             ? 'bg-green-600 text-white cursor-not-allowed'
-            : task.status === 'done'
+            : task.status === 'done' || hasOtherTimerActive
             ? 'bg-gray-700 text-gray-500 cursor-not-allowed'
             : 'bg-primary-600 hover:bg-primary-700 text-white'
         }`}
@@ -259,6 +248,11 @@ function TaskCard({
           <>
             <Clock size={18} />
             <span>Timer Active</span>
+          </>
+        ) : hasOtherTimerActive ? (
+          <>
+            <Clock size={18} />
+            <span>Another Timer Running</span>
           </>
         ) : (
           <>
