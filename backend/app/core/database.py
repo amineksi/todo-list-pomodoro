@@ -4,8 +4,7 @@ Supports both SQLite (development) and PostgreSQL (production).
 """
 
 from sqlalchemy import create_engine
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import declarative_base, sessionmaker
 from sqlalchemy.pool import StaticPool, QueuePool
 from .config import settings
 
@@ -26,14 +25,32 @@ if is_sqlite:
     )
 elif is_postgresql:
     # PostgreSQL connection pool configuration
-    engine = create_engine(
-        settings.DATABASE_URL,
-        poolclass=QueuePool,
-        pool_size=5,
-        max_overflow=10,
-        pool_pre_ping=True,  # Verify connections before using
-        echo=False
-    )
+    # Only try to create engine if psycopg2 is available
+    try:
+        import psycopg2  # noqa: F401
+        engine = create_engine(
+            settings.DATABASE_URL,
+            poolclass=QueuePool,
+            pool_size=5,
+            max_overflow=10,
+            pool_pre_ping=True,  # Verify connections before using
+            echo=False
+        )
+    except ImportError:
+        # If psycopg2 is not available, fall back to SQLite for testing
+        import warnings
+        warnings.warn(
+            "psycopg2 not available, falling back to SQLite. "
+            "Install psycopg2-binary for PostgreSQL support.",
+            UserWarning
+        )
+        connect_args = {"check_same_thread": False}
+        engine = create_engine(
+            "sqlite:///./fallback.db",
+            connect_args=connect_args,
+            poolclass=StaticPool,
+            echo=False
+        )
 else:
     # Default configuration for other databases
     connect_args = {}

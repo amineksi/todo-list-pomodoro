@@ -2,14 +2,25 @@
 Tests for task endpoints.
 """
 
+import os
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
+# Set DATABASE_URL to SQLite BEFORE importing app to avoid psycopg2 dependency
+os.environ["DATABASE_URL"] = "sqlite:///./test.db"
+os.environ["SECRET_KEY"] = "test-secret-key"
+
 from app.main import app
 from app.core.database import Base, get_db
+from app.core.dependencies import get_current_active_user
+from app.core.security import get_password_hash
 from app.models.task import Task
+from app.models.user import User
+
+# Import models to ensure they're registered with Base
+from app.models import user, task
 
 # Test database (in-memory SQLite)
 SQLALCHEMY_DATABASE_URL = "sqlite:///./test.db"
@@ -25,12 +36,51 @@ def override_get_db():
     finally:
         db.close()
 
+# Create a test user for authentication
+def override_get_current_user():
+    db = TestingSessionLocal()
+    try:
+        user = db.query(User).filter(User.username == "testuser").first()
+        if not user:
+            user = User(
+                username="testuser",
+                email="test@example.com",
+                hashed_password=get_password_hash("testpassword"),
+                is_active=True
+            )
+            db.add(user)
+            db.commit()
+            db.refresh(user)
+        return user
+    finally:
+        db.close()
+
 app.dependency_overrides[get_db] = override_get_db
+app.dependency_overrides[get_current_active_user] = override_get_current_user
 
 @pytest.fixture(scope="function")
 def client():
+    # Create all tables including User
     Base.metadata.create_all(bind=engine)
+    
+    # Create test user
+    db = TestingSessionLocal()
+    test_user = db.query(User).filter(User.username == "testuser").first()
+    if not test_user:
+        test_user = User(
+            username="testuser",
+            email="test@example.com",
+            hashed_password=get_password_hash("testpassword"),
+            is_active=True
+        )
+        db.add(test_user)
+        db.commit()
+        db.refresh(test_user)
+    db.close()
+    
     yield TestClient(app)
+    
+    # Cleanup
     Base.metadata.drop_all(bind=engine)
 
 def test_create_task(client):
