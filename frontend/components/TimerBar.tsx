@@ -1,10 +1,14 @@
 'use client'
 
 import { usePomodoro } from '@/contexts/PomodoroContext'
-import { Play, Pause, Square } from 'lucide-react'
+import { Play, Pause, SkipForward } from 'lucide-react'
+
+const WORK_DURATION = 25 // minutes
+const SHORT_BREAK_DURATION = 5 // minutes
+const LONG_BREAK_DURATION = 15 // minutes
 
 export default function TimerBar() {
-  const { state, pauseTimer, resumeTimer, stopTimer, hasActiveTimer } = usePomodoro()
+  const { state, pauseTimer, resumeTimer, skipTimer, hasActiveTimer } = usePomodoro()
 
   if (!hasActiveTimer) {
     return null
@@ -14,7 +18,13 @@ export default function TimerBar() {
     return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
   }
 
-  const progress = ((25 * 60 - (state.minutes * 60 + state.seconds)) / (25 * 60)) * 100
+  const initialDuration = state.sessionType === 'work' 
+    ? WORK_DURATION * 60 
+    : state.sessionType === 'long_break'
+    ? LONG_BREAK_DURATION * 60
+    : SHORT_BREAK_DURATION * 60
+  const remainingSeconds = state.minutes * 60 + state.seconds
+  const progress = initialDuration > 0 ? ((initialDuration - remainingSeconds) / initialDuration) * 100 : 0
 
   return (
     <div className="fixed bottom-0 left-0 right-0 bg-gradient-to-r from-primary-600 to-primary-700 text-white shadow-lg z-50">
@@ -24,10 +34,20 @@ export default function TimerBar() {
             <div className="flex items-center space-x-2">
               <span className="text-2xl">🍅</span>
               <div>
-                <div className="text-sm font-medium">{state.taskTitle || 'Pomodoro Timer'}</div>
-                <div className="text-xs opacity-90">
-                  Task #{state.taskId} • {Math.floor(state.elapsedSeconds / 60)}m elapsed
-                </div>
+                <div className="text-sm font-medium">
+                {state.sessionType === 'work' 
+                  ? (state.taskTitle || 'Pomodoro Timer')
+                  : state.sessionType === 'long_break'
+                  ? 'Long Break'
+                  : 'Short Break'}
+              </div>
+              <div className="text-xs opacity-90">
+                {state.sessionType === 'work' && state.taskId 
+                  ? `Task #${state.taskId} • ${Math.floor(state.elapsedSeconds / 60)}m elapsed`
+                  : state.sessionType === 'work'
+                  ? `${Math.floor(state.elapsedSeconds / 60)}m elapsed`
+                  : `Pomodoro ${state.completedPomodoros || 0} completed`}
+              </div>
               </div>
             </div>
 
@@ -64,11 +84,11 @@ export default function TimerBar() {
                 </button>
               )}
               <button
-                onClick={stopTimer}
+                onClick={skipTimer}
                 className="p-2 hover:bg-primary-800 rounded-lg transition-colors"
-                title="Stop"
+                title={state.sessionType === 'work' ? 'Skip to break' : 'Skip to work'}
               >
-                <Square size={20} />
+                <SkipForward size={20} />
               </button>
             </div>
           </div>

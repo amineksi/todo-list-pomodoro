@@ -5,6 +5,7 @@ import { usePathname, useRouter } from 'next/navigation'
 import { CheckSquare, BarChart3, LogOut, User } from 'lucide-react'
 import TimerBar from './TimerBar'
 import { useAuth } from '@/contexts/AuthContext'
+import { usePomodoro } from '@/contexts/PomodoroContext'
 
 interface LayoutProps {
   children: React.ReactNode
@@ -14,8 +15,13 @@ export default function Layout({ children }: LayoutProps) {
   const pathname = usePathname()
   const router = useRouter()
   const { user, isAuthenticated, logout, isLoading } = useAuth()
+  const { pauseTimer, state: pomodoroState } = usePomodoro()
 
   const handleLogout = () => {
+    // Pause timer if it's running before logout
+    if (pomodoroState.isRunning && pomodoroState.taskId !== null) {
+      pauseTimer()
+    }
     logout()
     router.push('/login')
   }

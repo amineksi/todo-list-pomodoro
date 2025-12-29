@@ -127,11 +127,6 @@ def login(
     # Verify password
     password_valid = verify_password(form_data.password, user.hashed_password)
     if not password_valid:
-        # Log for debugging
-        print(f"Password verification failed for user: {user.username}")
-        print(f"Password length: {len(form_data.password)}")
-        print(f"Hash length: {len(user.hashed_password)}")
-        print(f"Hash starts with: {user.hashed_password[:20]}...")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect username or password",
@@ -145,9 +140,10 @@ def login(
         )
     
     # Create access token
+    # Note: JWT 'sub' (subject) must be a string, not an integer
     access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
-        data={"sub": user.id, "username": user.username},
+        data={"sub": str(user.id), "username": user.username},
         expires_delta=access_token_expires
     )
     

@@ -53,7 +53,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       params.append('username', username)
       params.append('password', password)
 
-      const response = await apiClient.post('/auth/login', params, {
+      const response = await apiClient.post('/auth/login', params.toString(), {
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
         },
@@ -72,7 +72,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       localStorage.setItem(USER_KEY, JSON.stringify(userResponse.data))
     } catch (error: any) {
       console.error('Login error:', error)
-      throw new Error(error.response?.data?.detail || 'Login failed')
+      
+      // Provide more specific error messages
+      if (error.response) {
+        // Server responded with error
+        const detail = error.response.data?.detail
+        if (typeof detail === 'string') {
+          throw new Error(detail)
+        }
+        throw new Error(detail || 'Erreur de connexion')
+      } else if (error.request) {
+        // Request made but no response
+        throw new Error('Impossible de se connecter au serveur. Vérifiez que le backend est démarré.')
+      } else {
+        // Error setting up request
+        throw new Error(error.message || 'Erreur de connexion')
+      }
     }
   }
 
